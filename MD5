@@ -1,0 +1,14 @@
+4c7cd05df3d170eadeb2d7acd78a2b62 *DESCRIPTION
+b231a97901399ab2c7d8c7260210866a *LICENSE
+0b3718985fad43e60d4718d438ec3c90 *NAMESPACE
+07ee2a3ee669d21b99adad046ff82299 *R/crochet.R
+d3a211aea756ce2d0fc81ee18c2a545b *README.md
+6c0d57a648948e88b068b9ae017a840e *man/examples/extract.R
+b9fe4bb8f501472424811828fa7ed4da *man/examples/replace.R
+985ce4dc59ece6fa571c92953371b2d8 *man/extract.Rd
+a275a66c33de06f200c550cfd44836ff *man/replace.Rd
+f62b7a850aac15d1f92a444dc6b57a53 *tests/testthat.R
+c952f22d45004934e996fc7cca4d3f9b *tests/testthat/helper.R
+e94d849a671f26c9d75fe2e141e28836 *tests/testthat/test-crochet-extract.R
+56181b319710d7f479628ed3deeecc36 *tests/testthat/test-crochet-replace.R
+b0d19597731c89b263e860cd51e0b87d *tests/testthat/test-crochet.R
