@@ -4,7 +4,7 @@
 \alias{replace}
 \title{Create an Implementation of [<- For Custom Matrix-Like Types}
 \usage{
-replace(replace_vector, replace_matrix)
+replace(replace_vector, replace_matrix, allowDoubles = FALSE)
 }
 \arguments{
 \item{replace_vector}{A function in the form of \code{function(x, i, ..., value)}
@@ -13,6 +13,11 @@ values in \code{value} and returns \code{x}.}
 
 \item{replace_matrix}{A function in the form of \code{function(x, i, j, ..., value)} that replaces a matrix subset of \code{x} based on two indices \code{i} and
 \code{j} with the values in \code{value} and returns \code{x}.}
+
+\item{allowDoubles}{If set, indices of type double are not converted to
+integers if the operation would overflow to support matrices with \code{nrow()},
+\code{ncol()}, or \code{length()} greater than the largest integer that can be
+represented (\code{.Machine$integer.max}).}
 }
 \value{
 A function in the form of \code{function(x, i, j, ..., value)} that is
@@ -31,8 +36,8 @@ are recycled to match the replacement length.
 [i, j]: R:i,%20j
 }
 \details{
-The custom type must implement methods for \code{\link[base:dim]{base::dim()}} and
-\code{\link[base:dimnames]{base::dimnames()}} for this function to work. Implementing methods for
+The custom type must implement methods for \code{\link[base:length]{base::length()}}, \code{\link[base:dim]{base::dim()}}
+and \code{\link[base:dimnames]{base::dimnames()}} for this function to work. Implementing methods for
 \code{\link[base:nrow]{base::nrow()}}, \code{\link[base:ncol]{base::ncol()}}, \code{\link[base:rownames]{base::rownames()}}, and \code{\link[base:colnames]{base::colnames()}}
 is not necessary as the default method of those generics calls \code{\link[base:dim]{base::dim()}}
 or \code{\link[base:dimnames]{base::dimnames()}} internally.

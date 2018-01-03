@@ -1,8 +1,8 @@
 # Convert non-numeric types to positive integers
-convertIndex <- function(x, i, type) {
+convertIndex <- function(x, i, type, allowDoubles = FALSE) {
     if (type == "k") {
         # Single Index
-        n <- nrow(x) * ncol(x)
+        n <- length(x)
         checkBounds <- FALSE
     } else if (type == "i") {
         # Rows of Multi Index
@@ -53,12 +53,15 @@ convertIndex <- function(x, i, type) {
         checkBounds <- TRUE
     } else if (is.numeric(i)) { # x[1], x[-1], x[0]
         if (typeof(i) == "double") {
-            i <- as.integer(i)
+            # Convert to integer if there is no overflow
+            if (!(allowDoubles && any(abs(i) > .Machine$integer.max, na.rm = TRUE))) {
+                i <- as.integer(i)
+            }
         }
         # Remove all 0s
         i <- i[i != 0L]
         if (length(i) == 0L) { # x[0]
-            stop("Unsupported index type")
+            stop("indexing by 0 not implemented")
         } else {
             i_is_na <- is.na(i)
             # Negative integers are not allowed to be combined with
@@ -110,8 +113,8 @@ expandValue <- function(value, replacement_length) {
 #' `extract_vector` or `i` and `j` parameters of `extract_matrix` to facilitate
 #' implementing the extraction mechanism for custom matrix-like types.
 #'
-#' The custom type must implement methods for [base::dim()] and
-#' [base::dimnames()] for this function to work. Implementing methods for
+#' The custom type must implement methods for [base::length()], [base::dim()]
+#' and [base::dimnames()] for this function to work. Implementing methods for
 #' [base::nrow()], [base::ncol()], [base::rownames()], and [base::colnames()]
 #' is not necessary as the default method of those generics calls [base::dim()]
 #' or [base::dimnames()] internally.
@@ -121,11 +124,15 @@ expandValue <- function(value, replacement_length) {
 #' @param extract_matrix A function in the form of `function(x, i, j, ...)`
 #' that takes a subset of `x` based on two indices `i` and `j` and returns a
 #' matrix.
+#' @param allowDoubles If set, indices of type double are not converted to
+#' integers if the operation would overflow to support matrices with `nrow()`,
+#' `ncol()`, or `length()` greater than the largest integer that can be
+#' represented (`.Machine$integer.max`).
 #' @return A function in the form of `function(x, i, j, ..., drop = TRUE)` that
 #' is meant to be used as a method for \code{\link[base]{[}} for a custom type.
 #' @example man/examples/extract.R
 #' @export
-extract <- function(extract_vector, extract_matrix) {
+extract <- function(extract_vector, extract_matrix, allowDoubles = FALSE) {
 
     if (missing(extract_vector) || typeof(extract_vector) != "closure") {
         stop("extract_vector has to be of type closure")
@@ -155,19 +162,19 @@ extract <- function(extract_vector, extract_matrix) {
 
         # Single Index: x[i]
         if (nargs == 2L && !missing(i) && missing(j)) {
-            i <- convertIndex(x, i, "k")
+            i <- convertIndex(x, i, "k", allowDoubles = allowDoubles)
             subset <- extract_vector(x, i)
         # Multi Index: x[i, j], x[i, ], or x[, j]
         } else if (nargs == 3L && (!missing(i) || !missing(j))) {
             if (missing(i)) {
                 i <- seq(1L, nrow(x))
             } else {
-                i <- convertIndex(x, i, "i")
+                i <- convertIndex(x, i, "i", allowDoubles = allowDoubles)
             }
             if (missing(j)) {
                 j <- seq(1L, ncol(x))
             } else {
-                j <- convertIndex(x, j, "j")
+                j <- convertIndex(x, j, "j", allowDoubles = allowDoubles)
             }
             subset <- extract_matrix(x, i, j, ...)
             # Let R handle drop behavior: as.vector removes names
@@ -197,8 +204,8 @@ extract <- function(extract_vector, extract_matrix) {
 #' implementing the replacement mechanism for custom matrix-like types. Values
 #' are recycled to match the replacement length.
 #'
-#' The custom type must implement methods for [base::dim()] and
-#' [base::dimnames()] for this function to work. Implementing methods for
+#' The custom type must implement methods for [base::length()], [base::dim()]
+#' and [base::dimnames()] for this function to work. Implementing methods for
 #' [base::nrow()], [base::ncol()], [base::rownames()], and [base::colnames()]
 #' is not necessary as the default method of those generics calls [base::dim()]
 #' or [base::dimnames()] internally.
@@ -209,11 +216,15 @@ extract <- function(extract_vector, extract_matrix) {
 #' @param replace_matrix A function in the form of `function(x, i, j, ...,
 #' value)` that replaces a matrix subset of `x` based on two indices `i` and
 #' `j` with the values in `value` and returns `x`.
+#' @param allowDoubles If set, indices of type double are not converted to
+#' integers if the operation would overflow to support matrices with `nrow()`,
+#' `ncol()`, or `length()` greater than the largest integer that can be
+#' represented (`.Machine$integer.max`).
 #' @return A function in the form of `function(x, i, j, ..., value)` that is
 #' meant to be used as a method for \code{\link[base]{[<-}} for a custom type.
 #' @example man/examples/replace.R
 #' @export
-replace <- function(replace_vector, replace_matrix) {
+replace <- function(replace_vector, replace_matrix, allowDoubles = FALSE) {
 
     if (missing(replace_vector) || typeof(replace_vector) != "closure") {
         stop("replace_vector has to be of type closure")
@@ -237,8 +248,11 @@ replace <- function(replace_vector, replace_matrix) {
 
         # Single Index: x[i]
         if (nargs == 3L && !missing(i) && missing(j)) {
-            i <- convertIndex(x, i, "k")
+            i <- convertIndex(x, i, "k", allowDoubles = allowDoubles)
             i <- handleNAs(i, value)
+            if (any(i > length(x))) {
+                stop("out-of-bounds expansion not implemented")
+            }
             value <- expandValue(value, length(i))
             x <- replace_vector(x, i, ..., value = value)
         # Multi Index: x[i, j], x[i, ], or x[, j]
@@ -246,12 +260,12 @@ replace <- function(replace_vector, replace_matrix) {
             if (missing(i)) {
                 i <- seq(1L, nrow(x))
             } else {
-                i <- convertIndex(x, i, "i")
+                i <- convertIndex(x, i, "i", allowDoubles = allowDoubles)
             }
             if (missing(j)) {
                 j <- seq(1L, ncol(x))
             } else {
-                j <- convertIndex(x, j, "j")
+                j <- convertIndex(x, j, "j", allowDoubles = allowDoubles)
             }
             i <- handleNAs(i, value)
             j <- handleNAs(j, value)
@@ -269,4 +283,49 @@ replace <- function(replace_vector, replace_matrix) {
 
     })
 
+}
+
+# Incomplete check if x is matrix-like. Should check for length as well.
+isMatrixLike <- function(x) {
+    length(dim(x)) == 2L
+}
+
+#' Convert One-Dimensional Index k to Two-Dimensional Indices i and j
+#'
+#' `ktoij` is a helper function that converts a one-dimensional index `k` to
+#' two-dimensional indices `i` and `j`. This can be useful if, for example,
+#' two-dimensional indexing is easier to implement than one-dimensional
+#' indexing.
+#'
+#' It is assumed that all indices are one-based.
+#'
+#' @param x A matrix-like object.
+#' @param k A one-dimensional index.
+#' @return A list containing indices `i` and `j`.
+#' @export
+ktoij <- function(x, k) {
+    k <- k - 1L
+    n <- nrow(x)
+    i <- (k %% n) + 1L
+    j <- floor(k / n) + 1L # use floor instead of as.integer to support doubles
+    list(i = i, j = j)
+}
+
+
+#' Convert Two-Dimensional Indices i and j to One-Dimensional Index k
+#'
+#' `ijtok` is a helper function that converts two-dimensional indices `i` and
+#' `j` to a one-dimensional index `k`. This can be useful if, for example,
+#' one-dimensional indexing is easier to implement than two-dimensional
+#' indexing.
+#'
+#' It is assumed that all indices are one-based.
+#'
+#' @param x A matrix-like object.
+#' @param i The first component of a two-dimensional index.
+#' @param j The second component of a two-dimensional index.
+#' @return A one-dimensional index.
+#' @export
+ijtok <- function(x, i, j) {
+    (j - 1L) * nrow(x) + i
 }
