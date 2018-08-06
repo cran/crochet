@@ -1,5 +1,5 @@
 Package: crochet
-Version: 2.0.1
+Version: 2.1.0
 License: MIT + file LICENSE
 Title: Implementation Helper for [ and [<- Of Custom Matrix-Like Types
 Description: Functions to help implement the extraction / subsetting / indexing
@@ -10,11 +10,12 @@ Authors@R: person("Alexander", "Grueneberg", email = "alexander.grueneberg@googl
 URL: https://github.com/agrueneberg/crochet
 BugReports: https://github.com/agrueneberg/crochet/issues
 Imports: methods
-Suggests: testthat
-RoxygenNote: 6.0.1
+Suggests: testthat, covr
+RoxygenNote: 6.1.0
+Encoding: UTF-8
 NeedsCompilation: no
-Packaged: 2018-01-08 12:39:09 UTC; agrueneberg
+Packaged: 2018-08-06 15:26:06 UTC; agrueneberg
 Author: Alexander Grueneberg [aut, cre]
 Maintainer: Alexander Grueneberg <alexander.grueneberg@googlemail.com>
 Repository: CRAN
-Date/Publication: 2018-01-08 14:04:39 UTC
+Date/Publication: 2018-08-06 15:40:08 UTC
