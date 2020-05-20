@@ -1,43 +1,57 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 
 
 <title>Example of a Custom Type that Implements ‘extract’ and ‘replace’</title>
 
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
 
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css" data-origin="pandoc">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
 @media screen {
 div.sourceCode { overflow: auto; }
 }
 @media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
-pre.numberSource a.sourceLine
-  { position: relative; left: -4em; }
-pre.numberSource a.sourceLine::before
-  { content: attr(title);
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
     position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all; display: inline-block;
+    border: none; display: inline-block;
     -webkit-touch-callout: none; -webkit-user-select: none;
     -khtml-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -46,9 +60,9 @@ pre.numberSource a.sourceLine::before
   }
 pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
 div.sourceCode
-  {  }
+  {   }
 @media screen {
-a.sourceLine::before { text-decoration: underline; }
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 code span.al { color: #ff0000; font-weight: bold; } /* Alert */
 code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
@@ -94,7 +108,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
       if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
       var style = rule.style.cssText;
       // check if color or background-color is set
-      if (rule.style.color === '' || rule.style.backgroundColor === '') continue;
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
       // replace div.sourceCode by a pre.sourceCode rule
       sheets[i].deleteRule(j);
       sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
@@ -115,9 +129,6 @@ padding-right: 2em;
 font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 font-size: 14px;
 line-height: 1.35;
-}
-#header {
-text-align: center;
 }
 #TOC {
 clear: both;
@@ -286,7 +297,8 @@ code > span.st { color: #d14; }
 code > span.co { color: #888888; font-style: italic; } 
 code > span.ot { color: #007020; } 
 code > span.al { color: #ff0000; font-weight: bold; } 
-code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61717; background-color: #e3d2d2; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
 </style>
 
 
@@ -306,182 +318,185 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 <p>In this example we are going to implement a custom matrix-like type that stores data in form of characters as a string in the <code>_data</code> attribute of an object. This is not going to be particularly useful, but serves as an easy to understand starting point that can be adapted for other storage mechanisms, e.g., databases, shared memory, and so on.</p>
 <p>First we need to clarify what we mean by matrix-like type: a matrix-like type is a class (i.e., implemented using any of R’s object-oriented mechanisms) that implements <strong>at least</strong> the <code>dim()</code>, <code>length()</code>, <code>dimnames()</code>, and the <code>[</code> extraction method.</p>
 <p>Let’s call our type <code>StringMatrix</code> and implement it as an S3 class. If you need a refresher on S3 classes, please read the <a href="http://adv-r.had.co.nz/OO-essentials.html">OO field guide</a> chapter in the <strong>Advanced R</strong> book by Hadley Wickham first. Let’s start with implementing the <code>dim()</code>, <code>length()</code>, and <code>dimnames()</code> methods:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1">dim.StringMatrix &lt;-<span class="st"> </span><span class="cf">function</span>(x) {</a>
-<a class="sourceLine" id="cb1-2" title="2">    <span class="kw">attr</span>(x, <span class="st">&quot;_dim&quot;</span>) <span class="co"># store dimensions in `_dim` attribute</span></a>
-<a class="sourceLine" id="cb1-3" title="3">}</a>
-<a class="sourceLine" id="cb1-4" title="4"></a>
-<a class="sourceLine" id="cb1-5" title="5">length.StringMatrix &lt;-<span class="st"> </span><span class="cf">function</span>(x) {</a>
-<a class="sourceLine" id="cb1-6" title="6">    <span class="kw">prod</span>(<span class="kw">dim</span>(x)) <span class="co"># rely on `dim()` method above</span></a>
-<a class="sourceLine" id="cb1-7" title="7">}</a>
-<a class="sourceLine" id="cb1-8" title="8"></a>
-<a class="sourceLine" id="cb1-9" title="9">dimnames.StringMatrix &lt;-<span class="st"> </span><span class="cf">function</span>(x) {</a>
-<a class="sourceLine" id="cb1-10" title="10">    <span class="kw">attr</span>(x, <span class="st">&quot;_dimnames&quot;</span>) <span class="co"># store dim names in `_dimnames` attribute</span></a>
-<a class="sourceLine" id="cb1-11" title="11">}</a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a>dim.StringMatrix &lt;-<span class="st"> </span><span class="cf">function</span>(x) {</span>
+<span id="cb1-2"><a href="#cb1-2"></a>    <span class="kw">attr</span>(x, <span class="st">&quot;_dim&quot;</span>) <span class="co"># store dimensions in `_dim` attribute</span></span>
+<span id="cb1-3"><a href="#cb1-3"></a>}</span>
+<span id="cb1-4"><a href="#cb1-4"></a></span>
+<span id="cb1-5"><a href="#cb1-5"></a>length.StringMatrix &lt;-<span class="st"> </span><span class="cf">function</span>(x) {</span>
+<span id="cb1-6"><a href="#cb1-6"></a>    <span class="kw">prod</span>(<span class="kw">dim</span>(x)) <span class="co"># rely on `dim()` method above</span></span>
+<span id="cb1-7"><a href="#cb1-7"></a>}</span>
+<span id="cb1-8"><a href="#cb1-8"></a></span>
+<span id="cb1-9"><a href="#cb1-9"></a>dimnames.StringMatrix &lt;-<span class="st"> </span><span class="cf">function</span>(x) {</span>
+<span id="cb1-10"><a href="#cb1-10"></a>    <span class="kw">attr</span>(x, <span class="st">&quot;_dimnames&quot;</span>) <span class="co"># store dim names in `_dimnames` attribute</span></span>
+<span id="cb1-11"><a href="#cb1-11"></a>}</span></code></pre></div>
 <p>Subsetting in R is very powerful and can therefore be difficult to implement depending on how many indexing mechanisms you want to support. For example, given a 5x5 matrix, all of the following cases (non-exhaustive) are equivalent:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" title="1">X[<span class="kw">seq</span>(<span class="dv">1</span>, <span class="dv">25</span>, <span class="dt">by =</span> <span class="dv">5</span>)] <span class="co"># subsetting by positive integers</span></a>
-<a class="sourceLine" id="cb2-2" title="2">X[<span class="dv">1</span>, ] <span class="co"># simplifying subsetting by positive integers</span></a>
-<a class="sourceLine" id="cb2-3" title="3">X[<span class="op">-</span>(<span class="dv">2</span><span class="op">:</span><span class="dv">5</span>), ] <span class="co"># simplifying subsetting by negative integers</span></a>
-<a class="sourceLine" id="cb2-4" title="4">X[<span class="kw">c</span>(<span class="ot">TRUE</span>, <span class="ot">FALSE</span>, <span class="ot">FALSE</span>, <span class="ot">FALSE</span>, <span class="ot">FALSE</span>), ] <span class="co"># simplifying subsetting by booleans</span></a>
-<a class="sourceLine" id="cb2-5" title="5">X[<span class="st">&quot;row_1&quot;</span>, ] <span class="co"># simplifying subsetting by row names (only if dimnames exist)</span></a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>X[<span class="kw">seq</span>(<span class="dv">1</span>, <span class="dv">25</span>, <span class="dt">by =</span> <span class="dv">5</span>)] <span class="co"># subsetting by positive integers</span></span>
+<span id="cb2-2"><a href="#cb2-2"></a>X[<span class="dv">1</span>, ] <span class="co"># simplifying subsetting by positive integers</span></span>
+<span id="cb2-3"><a href="#cb2-3"></a>X[<span class="op">-</span>(<span class="dv">2</span><span class="op">:</span><span class="dv">5</span>), ] <span class="co"># simplifying subsetting by negative integers</span></span>
+<span id="cb2-4"><a href="#cb2-4"></a>X[<span class="kw">c</span>(<span class="ot">TRUE</span>, <span class="ot">FALSE</span>, <span class="ot">FALSE</span>, <span class="ot">FALSE</span>, <span class="ot">FALSE</span>), ] <span class="co"># simplifying subsetting by booleans</span></span>
+<span id="cb2-5"><a href="#cb2-5"></a>X[<span class="st">&quot;row_1&quot;</span>, ] <span class="co"># simplifying subsetting by row names (only if dimnames exist)</span></span></code></pre></div>
 <p>This complexity motivated the development of the crochet package. The <code>extract()</code> function of the package takes care of converting all those indexing mechanisms to positive integers, which is typically the easiest mechanism to implement. <code>extract()</code> returns a function that can be used as a method for <code>[</code> for a custom type. Matrices can be subsetted using one-dimensional (<code>i</code> only) and two-dimensional indices (<code>i</code> and <code>j</code>) and both have very different behaviors. Therefore, two functions need to be provided to <code>extract()</code> as <code>extract_vector</code> and <code>extract_matrix</code>. <code>extract_vector</code> has to be a function of the form <code>function(x, i, ...)</code> and <code>extract_matrix</code> a function of the form <code>function(x, i, j, ...)</code>. Both functions return a subset of <code>x</code>.</p>
 <p>The following snippets gives a simple way to extract characters from a string one by one. In R, we can extract the <em>n</em>th character from a string using the <code>substr()</code> function: <code>substr(x, n, n)</code>. Conversely, the <em>n</em>th character can be replaced as follows: <code>substr(x, n, n) &lt;- value</code>. Note that the <code>[</code> character is not allowed in a variable name, so it needs to be escaped with backticks when establishing the return value of <code>extract()</code> as a method of <code>StringMatrix</code>.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1"><span class="st">`</span><span class="dt">[.StringMatrix</span><span class="st">`</span> &lt;-<span class="st"> </span>crochet<span class="op">::</span><span class="kw">extract</span>(</a>
-<a class="sourceLine" id="cb3-2" title="2">    <span class="dt">extract_vector =</span> <span class="cf">function</span>(x, i, ...) { <span class="co"># i are positive integers</span></a>
-<a class="sourceLine" id="cb3-3" title="3">        <span class="co"># Reserve output vector</span></a>
-<a class="sourceLine" id="cb3-4" title="4">        subset &lt;-<span class="st"> </span><span class="kw">vector</span>(<span class="dt">mode =</span> <span class="st">&quot;character&quot;</span>, <span class="dt">length =</span> <span class="kw">length</span>(i))</a>
-<a class="sourceLine" id="cb3-5" title="5">        <span class="co"># Populate output vector</span></a>
-<a class="sourceLine" id="cb3-6" title="6">        <span class="cf">for</span> (singleIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</a>
-<a class="sourceLine" id="cb3-7" title="7">            subset[singleIdx] &lt;-<span class="st"> </span><span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), i[singleIdx], i[singleIdx])</a>
-<a class="sourceLine" id="cb3-8" title="8">        }</a>
-<a class="sourceLine" id="cb3-9" title="9">        <span class="co"># Return output vector</span></a>
-<a class="sourceLine" id="cb3-10" title="10">        <span class="kw">return</span>(subset)</a>
-<a class="sourceLine" id="cb3-11" title="11">    },</a>
-<a class="sourceLine" id="cb3-12" title="12">    <span class="dt">extract_matrix =</span> <span class="cf">function</span>(x, i, j, ...) { <span class="co"># i and j are positive integers</span></a>
-<a class="sourceLine" id="cb3-13" title="13">        <span class="co"># Reserve output matrix</span></a>
-<a class="sourceLine" id="cb3-14" title="14">        subset &lt;-<span class="st"> </span><span class="kw">matrix</span>(</a>
-<a class="sourceLine" id="cb3-15" title="15">            <span class="dt">data =</span> <span class="kw">vector</span>(<span class="dt">mode =</span> <span class="st">&quot;character&quot;</span>, <span class="dt">length =</span> <span class="kw">length</span>(i) <span class="op">*</span><span class="st"> </span><span class="kw">length</span>(j)),</a>
-<a class="sourceLine" id="cb3-16" title="16">            <span class="dt">nrow =</span> <span class="kw">length</span>(i),</a>
-<a class="sourceLine" id="cb3-17" title="17">            <span class="dt">ncol =</span> <span class="kw">length</span>(j)</a>
-<a class="sourceLine" id="cb3-18" title="18">        )</a>
-<a class="sourceLine" id="cb3-19" title="19">        <span class="co"># Populate output matrix</span></a>
-<a class="sourceLine" id="cb3-20" title="20">        <span class="cf">for</span> (colIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(j)) {</a>
-<a class="sourceLine" id="cb3-21" title="21">            <span class="cf">for</span> (rowIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</a>
-<a class="sourceLine" id="cb3-22" title="22">                <span class="co"># two-dimensional index needs to be converted to one-dimensional index</span></a>
-<a class="sourceLine" id="cb3-23" title="23">                singleIdx &lt;-<span class="st"> </span>crochet<span class="op">:::</span><span class="kw">ijtok</span>(x, i[rowIdx], j[colIdx])</a>
-<a class="sourceLine" id="cb3-24" title="24">                subset[rowIdx, colIdx] &lt;-<span class="st"> </span><span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), singleIdx, singleIdx)</a>
-<a class="sourceLine" id="cb3-25" title="25">            }</a>
-<a class="sourceLine" id="cb3-26" title="26">        }</a>
-<a class="sourceLine" id="cb3-27" title="27">        <span class="co"># Return output matrix</span></a>
-<a class="sourceLine" id="cb3-28" title="28">        <span class="kw">return</span>(subset)</a>
-<a class="sourceLine" id="cb3-29" title="29">    }</a>
-<a class="sourceLine" id="cb3-30" title="30">)</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="st">`</span><span class="dt">[.StringMatrix</span><span class="st">`</span> &lt;-<span class="st"> </span>crochet<span class="op">::</span><span class="kw">extract</span>(</span>
+<span id="cb3-2"><a href="#cb3-2"></a>    <span class="dt">extract_vector =</span> <span class="cf">function</span>(x, i, ...) { <span class="co"># i are positive integers</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a>        <span class="co"># Reserve output vector</span></span>
+<span id="cb3-4"><a href="#cb3-4"></a>        subset &lt;-<span class="st"> </span><span class="kw">vector</span>(<span class="dt">mode =</span> <span class="st">&quot;character&quot;</span>, <span class="dt">length =</span> <span class="kw">length</span>(i))</span>
+<span id="cb3-5"><a href="#cb3-5"></a>        <span class="co"># Populate output vector</span></span>
+<span id="cb3-6"><a href="#cb3-6"></a>        <span class="cf">for</span> (singleIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</span>
+<span id="cb3-7"><a href="#cb3-7"></a>            subset[singleIdx] &lt;-<span class="st"> </span><span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), i[singleIdx], i[singleIdx])</span>
+<span id="cb3-8"><a href="#cb3-8"></a>        }</span>
+<span id="cb3-9"><a href="#cb3-9"></a>        <span class="co"># Return output vector</span></span>
+<span id="cb3-10"><a href="#cb3-10"></a>        <span class="kw">return</span>(subset)</span>
+<span id="cb3-11"><a href="#cb3-11"></a>    },</span>
+<span id="cb3-12"><a href="#cb3-12"></a>    <span class="dt">extract_matrix =</span> <span class="cf">function</span>(x, i, j, ...) { <span class="co"># i and j are positive integers</span></span>
+<span id="cb3-13"><a href="#cb3-13"></a>        <span class="co"># Reserve output matrix</span></span>
+<span id="cb3-14"><a href="#cb3-14"></a>        subset &lt;-<span class="st"> </span><span class="kw">matrix</span>(</span>
+<span id="cb3-15"><a href="#cb3-15"></a>            <span class="dt">data =</span> <span class="kw">vector</span>(<span class="dt">mode =</span> <span class="st">&quot;character&quot;</span>, <span class="dt">length =</span> <span class="kw">length</span>(i) <span class="op">*</span><span class="st"> </span><span class="kw">length</span>(j)),</span>
+<span id="cb3-16"><a href="#cb3-16"></a>            <span class="dt">nrow =</span> <span class="kw">length</span>(i),</span>
+<span id="cb3-17"><a href="#cb3-17"></a>            <span class="dt">ncol =</span> <span class="kw">length</span>(j)</span>
+<span id="cb3-18"><a href="#cb3-18"></a>        )</span>
+<span id="cb3-19"><a href="#cb3-19"></a>        <span class="co"># Populate output matrix</span></span>
+<span id="cb3-20"><a href="#cb3-20"></a>        <span class="cf">for</span> (colIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(j)) {</span>
+<span id="cb3-21"><a href="#cb3-21"></a>            <span class="cf">for</span> (rowIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</span>
+<span id="cb3-22"><a href="#cb3-22"></a>                <span class="co"># two-dimensional index needs to be converted to one-dimensional index</span></span>
+<span id="cb3-23"><a href="#cb3-23"></a>                singleIdx &lt;-<span class="st"> </span>crochet<span class="op">:::</span><span class="kw">ijtok</span>(x, i[rowIdx], j[colIdx])</span>
+<span id="cb3-24"><a href="#cb3-24"></a>                subset[rowIdx, colIdx] &lt;-<span class="st"> </span><span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), singleIdx, singleIdx)</span>
+<span id="cb3-25"><a href="#cb3-25"></a>            }</span>
+<span id="cb3-26"><a href="#cb3-26"></a>        }</span>
+<span id="cb3-27"><a href="#cb3-27"></a>        <span class="co"># Return output matrix</span></span>
+<span id="cb3-28"><a href="#cb3-28"></a>        <span class="kw">return</span>(subset)</span>
+<span id="cb3-29"><a href="#cb3-29"></a>    }</span>
+<span id="cb3-30"><a href="#cb3-30"></a>)</span></code></pre></div>
 <p>We can now create an object of the <code>StringMatrix</code> class and provide it with some data:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1"><span class="co"># Generate data</span></a>
-<a class="sourceLine" id="cb4-2" title="2">n &lt;-<span class="st"> </span><span class="dv">5</span></a>
-<a class="sourceLine" id="cb4-3" title="3">p &lt;-<span class="st"> </span><span class="dv">5</span></a>
-<a class="sourceLine" id="cb4-4" title="4">alphabet &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">0</span><span class="op">:</span><span class="dv">9</span>, letters)</a>
-<a class="sourceLine" id="cb4-5" title="5">data &lt;-<span class="st"> </span><span class="kw">sample</span>(alphabet, <span class="dt">replace =</span> <span class="ot">TRUE</span>, <span class="dt">size =</span> n <span class="op">*</span><span class="st"> </span>p)</a>
-<a class="sourceLine" id="cb4-6" title="6"></a>
-<a class="sourceLine" id="cb4-7" title="7"><span class="co"># Create object</span></a>
-<a class="sourceLine" id="cb4-8" title="8">obj &lt;-<span class="st"> </span><span class="kw">list</span>()</a>
-<a class="sourceLine" id="cb4-9" title="9"><span class="kw">class</span>(obj) &lt;-<span class="st"> &quot;StringMatrix&quot;</span></a>
-<a class="sourceLine" id="cb4-10" title="10"><span class="kw">attr</span>(obj, <span class="st">&quot;_dim&quot;</span>) &lt;-<span class="st"> </span><span class="kw">c</span>(n, p)</a>
-<a class="sourceLine" id="cb4-11" title="11"><span class="kw">attr</span>(obj, <span class="st">&quot;_dimnames&quot;</span>) &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="kw">paste0</span>(<span class="st">&quot;row_&quot;</span>, <span class="dv">1</span><span class="op">:</span>n), <span class="kw">paste0</span>(<span class="st">&quot;col_&quot;</span>, <span class="dv">1</span><span class="op">:</span>p))</a>
-<a class="sourceLine" id="cb4-12" title="12"><span class="kw">attr</span>(obj, <span class="st">&quot;_data&quot;</span>) &lt;-<span class="st"> </span><span class="kw">paste</span>(data, <span class="dt">collapse =</span> <span class="st">&quot;&quot;</span>)</a>
-<a class="sourceLine" id="cb4-13" title="13"></a>
-<a class="sourceLine" id="cb4-14" title="14"><span class="co"># Call some methods</span></a>
-<a class="sourceLine" id="cb4-15" title="15"><span class="kw">dim</span>(obj)</a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a><span class="co"># Generate data</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a>n &lt;-<span class="st"> </span><span class="dv">5</span></span>
+<span id="cb4-3"><a href="#cb4-3"></a>p &lt;-<span class="st"> </span><span class="dv">5</span></span>
+<span id="cb4-4"><a href="#cb4-4"></a>alphabet &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">0</span><span class="op">:</span><span class="dv">9</span>, letters)</span>
+<span id="cb4-5"><a href="#cb4-5"></a>data &lt;-<span class="st"> </span><span class="kw">sample</span>(alphabet, <span class="dt">replace =</span> <span class="ot">TRUE</span>, <span class="dt">size =</span> n <span class="op">*</span><span class="st"> </span>p)</span>
+<span id="cb4-6"><a href="#cb4-6"></a></span>
+<span id="cb4-7"><a href="#cb4-7"></a><span class="co"># Create object</span></span>
+<span id="cb4-8"><a href="#cb4-8"></a>obj &lt;-<span class="st"> </span><span class="kw">list</span>()</span>
+<span id="cb4-9"><a href="#cb4-9"></a><span class="kw">class</span>(obj) &lt;-<span class="st"> &quot;StringMatrix&quot;</span></span>
+<span id="cb4-10"><a href="#cb4-10"></a><span class="kw">attr</span>(obj, <span class="st">&quot;_dim&quot;</span>) &lt;-<span class="st"> </span><span class="kw">c</span>(n, p)</span>
+<span id="cb4-11"><a href="#cb4-11"></a><span class="kw">attr</span>(obj, <span class="st">&quot;_dimnames&quot;</span>) &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="kw">paste0</span>(<span class="st">&quot;row_&quot;</span>, <span class="dv">1</span><span class="op">:</span>n), <span class="kw">paste0</span>(<span class="st">&quot;col_&quot;</span>, <span class="dv">1</span><span class="op">:</span>p))</span>
+<span id="cb4-12"><a href="#cb4-12"></a><span class="kw">attr</span>(obj, <span class="st">&quot;_data&quot;</span>) &lt;-<span class="st"> </span><span class="kw">paste</span>(data, <span class="dt">collapse =</span> <span class="st">&quot;&quot;</span>)</span>
+<span id="cb4-13"><a href="#cb4-13"></a></span>
+<span id="cb4-14"><a href="#cb4-14"></a><span class="co"># Call some methods</span></span>
+<span id="cb4-15"><a href="#cb4-15"></a><span class="kw">dim</span>(obj)</span></code></pre></div>
 <pre><code>## [1] 5 5</code></pre>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">nrow</span>(obj) <span class="co"># you get this for free by implementing `dim()`</span></a></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a><span class="kw">nrow</span>(obj) <span class="co"># you get this for free by implementing `dim()`</span></span></code></pre></div>
 <pre><code>## [1] 5</code></pre>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb8-1" title="1"><span class="kw">ncol</span>(obj) <span class="co"># you get this for free by implementing `dim()`</span></a></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1"></a><span class="kw">ncol</span>(obj) <span class="co"># you get this for free by implementing `dim()`</span></span></code></pre></div>
 <pre><code>## [1] 5</code></pre>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb10-1" title="1"><span class="kw">length</span>(obj)</a></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1"></a><span class="kw">length</span>(obj)</span></code></pre></div>
 <pre><code>## [1] 25</code></pre>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb12-1" title="1"><span class="kw">dimnames</span>(obj)</a></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a><span class="kw">dimnames</span>(obj)</span></code></pre></div>
 <pre><code>## [[1]]
 ## [1] &quot;row_1&quot; &quot;row_2&quot; &quot;row_3&quot; &quot;row_4&quot; &quot;row_5&quot;
 ## 
 ## [[2]]
 ## [1] &quot;col_1&quot; &quot;col_2&quot; &quot;col_3&quot; &quot;col_4&quot; &quot;col_5&quot;</code></pre>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb14-1" title="1"><span class="kw">rownames</span>(obj) <span class="co"># you get this for free by implementing `dimnames()`</span></a></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a><span class="kw">rownames</span>(obj) <span class="co"># you get this for free by implementing `dimnames()`</span></span></code></pre></div>
 <pre><code>## [1] &quot;row_1&quot; &quot;row_2&quot; &quot;row_3&quot; &quot;row_4&quot; &quot;row_5&quot;</code></pre>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb16-1" title="1"><span class="kw">colnames</span>(obj) <span class="co"># you get this for free by implementing `dimnames()`</span></a></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a><span class="kw">colnames</span>(obj) <span class="co"># you get this for free by implementing `dimnames()`</span></span></code></pre></div>
 <pre><code>## [1] &quot;col_1&quot; &quot;col_2&quot; &quot;col_3&quot; &quot;col_4&quot; &quot;col_5&quot;</code></pre>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb18-1" title="1"><span class="co"># Extract some data</span></a>
-<a class="sourceLine" id="cb18-2" title="2">obj[<span class="kw">seq</span>(<span class="dv">1</span>, <span class="kw">length</span>(obj), <span class="dt">by =</span> p)] <span class="co"># subsetting by positive integers</span></a></code></pre></div>
-<pre><code>## [1] &quot;5&quot; &quot;e&quot; &quot;y&quot; &quot;8&quot; &quot;u&quot;</code></pre>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb20-1" title="1">obj[<span class="dv">1</span>, ] <span class="co"># simplifying subsetting by positive integers</span></a></code></pre></div>
-<pre><code>## [1] &quot;5&quot; &quot;e&quot; &quot;y&quot; &quot;8&quot; &quot;u&quot;</code></pre>
-<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb22-1" title="1">obj[<span class="op">-</span>(<span class="dv">2</span><span class="op">:</span><span class="kw">length</span>(obj)), ] <span class="co"># simplifying subsetting by negative integers</span></a></code></pre></div>
-<pre><code>## [1] &quot;5&quot; &quot;e&quot; &quot;y&quot; &quot;8&quot; &quot;u&quot;</code></pre>
-<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb24-1" title="1">obj[<span class="kw">c</span>(<span class="ot">TRUE</span>, <span class="kw">rep_len</span>(<span class="ot">FALSE</span>, <span class="kw">nrow</span>(obj) <span class="op">-</span><span class="st"> </span><span class="dv">1</span>)), ] <span class="co"># simplifying subsetting by booleans</span></a></code></pre></div>
-<pre><code>## [1] &quot;5&quot; &quot;e&quot; &quot;y&quot; &quot;8&quot; &quot;u&quot;</code></pre>
-<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb26-1" title="1">obj[<span class="st">&quot;row_1&quot;</span>, ] <span class="co"># simplifying subsetting by row names (only if dimnames exist)</span></a></code></pre></div>
-<pre><code>## [1] &quot;5&quot; &quot;e&quot; &quot;y&quot; &quot;8&quot; &quot;u&quot;</code></pre>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1"></a><span class="co"># Extract some data</span></span>
+<span id="cb18-2"><a href="#cb18-2"></a>obj[<span class="kw">seq</span>(<span class="dv">1</span>, <span class="kw">length</span>(obj), <span class="dt">by =</span> p)] <span class="co"># subsetting by positive integers</span></span></code></pre></div>
+<pre><code>## [1] &quot;l&quot; &quot;2&quot; &quot;y&quot; &quot;3&quot; &quot;q&quot;</code></pre>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1"></a>obj[<span class="dv">1</span>, ] <span class="co"># simplifying subsetting by positive integers</span></span></code></pre></div>
+<pre><code>## [1] &quot;l&quot; &quot;2&quot; &quot;y&quot; &quot;3&quot; &quot;q&quot;</code></pre>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1"></a>obj[<span class="op">-</span>(<span class="dv">2</span><span class="op">:</span><span class="kw">length</span>(obj)), ] <span class="co"># simplifying subsetting by negative integers</span></span></code></pre></div>
+<pre><code>## [1] &quot;l&quot; &quot;2&quot; &quot;y&quot; &quot;3&quot; &quot;q&quot;</code></pre>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1"></a>obj[<span class="kw">c</span>(<span class="ot">TRUE</span>, <span class="kw">rep_len</span>(<span class="ot">FALSE</span>, <span class="kw">nrow</span>(obj) <span class="op">-</span><span class="st"> </span><span class="dv">1</span>)), ] <span class="co"># simplifying subsetting by booleans</span></span></code></pre></div>
+<pre><code>## [1] &quot;l&quot; &quot;2&quot; &quot;y&quot; &quot;3&quot; &quot;q&quot;</code></pre>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a>obj[<span class="st">&quot;row_1&quot;</span>, ] <span class="co"># simplifying subsetting by row names (only if dimnames exist)</span></span></code></pre></div>
+<pre><code>## [1] &quot;l&quot; &quot;2&quot; &quot;y&quot; &quot;3&quot; &quot;q&quot;</code></pre>
 <p>Different from <code>[</code> for atomic vectors (where both named and unnamed arguments are interpreted as indices), optional named arguments can be passed to <code>extract_vector</code> and <code>extact_matrix</code> as <code>...</code>. This can be useful for some optimization strategies (e.g., fadvise or madvise). Let’s add an option to capitalize subsets as a demonstration:</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb28-1" title="1"><span class="st">`</span><span class="dt">[.StringMatrix</span><span class="st">`</span> &lt;-<span class="st"> </span>crochet<span class="op">::</span><span class="kw">extract</span>(</a>
-<a class="sourceLine" id="cb28-2" title="2">    <span class="dt">extract_vector =</span> <span class="cf">function</span>(x, i, ...) { <span class="co"># i are positive integers</span></a>
-<a class="sourceLine" id="cb28-3" title="3">        dotdotdot &lt;-<span class="st"> </span><span class="kw">list</span>(...)</a>
-<a class="sourceLine" id="cb28-4" title="4">        <span class="co"># Reserve output vector</span></a>
-<a class="sourceLine" id="cb28-5" title="5">        subset &lt;-<span class="st"> </span><span class="kw">vector</span>(<span class="dt">mode =</span> <span class="st">&quot;character&quot;</span>, <span class="dt">length =</span> <span class="kw">length</span>(i))</a>
-<a class="sourceLine" id="cb28-6" title="6">        <span class="co"># Populate output vector</span></a>
-<a class="sourceLine" id="cb28-7" title="7">        <span class="cf">for</span> (singleIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</a>
-<a class="sourceLine" id="cb28-8" title="8">            subset[singleIdx] &lt;-<span class="st"> </span><span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), i[singleIdx], i[singleIdx])</a>
-<a class="sourceLine" id="cb28-9" title="9">        }</a>
-<a class="sourceLine" id="cb28-10" title="10">        <span class="co"># Capitalize output</span></a>
-<a class="sourceLine" id="cb28-11" title="11">        <span class="cf">if</span> (<span class="op">!</span><span class="kw">is.null</span>(dotdotdot<span class="op">$</span>capitalize) <span class="op">&amp;&amp;</span><span class="st"> </span>dotdotdot<span class="op">$</span>capitalize) {</a>
-<a class="sourceLine" id="cb28-12" title="12">            subset &lt;-<span class="st"> </span><span class="kw">toupper</span>(subset)</a>
-<a class="sourceLine" id="cb28-13" title="13">        }</a>
-<a class="sourceLine" id="cb28-14" title="14">        <span class="co"># Return output vector</span></a>
-<a class="sourceLine" id="cb28-15" title="15">        <span class="kw">return</span>(subset)</a>
-<a class="sourceLine" id="cb28-16" title="16">    },</a>
-<a class="sourceLine" id="cb28-17" title="17">    <span class="dt">extract_matrix =</span> <span class="cf">function</span>(x, i, j, ...) { <span class="co"># i and j are positive integers</span></a>
-<a class="sourceLine" id="cb28-18" title="18">        dotdotdot &lt;-<span class="st"> </span><span class="kw">list</span>(...)</a>
-<a class="sourceLine" id="cb28-19" title="19">        <span class="co"># Reserve output matrix</span></a>
-<a class="sourceLine" id="cb28-20" title="20">        subset &lt;-<span class="st"> </span><span class="kw">matrix</span>(</a>
-<a class="sourceLine" id="cb28-21" title="21">            <span class="dt">data =</span> <span class="kw">vector</span>(<span class="dt">mode =</span> <span class="st">&quot;character&quot;</span>, <span class="dt">length =</span> <span class="kw">length</span>(i) <span class="op">*</span><span class="st"> </span><span class="kw">length</span>(j)),</a>
-<a class="sourceLine" id="cb28-22" title="22">            <span class="dt">nrow =</span> <span class="kw">length</span>(i),</a>
-<a class="sourceLine" id="cb28-23" title="23">            <span class="dt">ncol =</span> <span class="kw">length</span>(j)</a>
-<a class="sourceLine" id="cb28-24" title="24">        )</a>
-<a class="sourceLine" id="cb28-25" title="25">        <span class="co"># Populate output matrix</span></a>
-<a class="sourceLine" id="cb28-26" title="26">        <span class="cf">for</span> (colIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(j)) {</a>
-<a class="sourceLine" id="cb28-27" title="27">            <span class="cf">for</span> (rowIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</a>
-<a class="sourceLine" id="cb28-28" title="28">                <span class="co"># two-dimensional index needs to be converted to one-dimensional index</span></a>
-<a class="sourceLine" id="cb28-29" title="29">                singleIdx &lt;-<span class="st"> </span>crochet<span class="op">:::</span><span class="kw">ijtok</span>(x, i[rowIdx], j[colIdx])</a>
-<a class="sourceLine" id="cb28-30" title="30">                subset[rowIdx, colIdx] &lt;-<span class="st"> </span><span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), singleIdx, singleIdx)</a>
-<a class="sourceLine" id="cb28-31" title="31">            }</a>
-<a class="sourceLine" id="cb28-32" title="32">        }</a>
-<a class="sourceLine" id="cb28-33" title="33">        <span class="co"># Capitalize output</span></a>
-<a class="sourceLine" id="cb28-34" title="34">        <span class="cf">if</span> (<span class="op">!</span><span class="kw">is.null</span>(dotdotdot<span class="op">$</span>capitalize) <span class="op">&amp;&amp;</span><span class="st"> </span>dotdotdot<span class="op">$</span>capitalize) {</a>
-<a class="sourceLine" id="cb28-35" title="35">            subset &lt;-<span class="st"> </span><span class="kw">toupper</span>(subset)</a>
-<a class="sourceLine" id="cb28-36" title="36">        }</a>
-<a class="sourceLine" id="cb28-37" title="37">        <span class="co"># Return output matrix</span></a>
-<a class="sourceLine" id="cb28-38" title="38">        <span class="kw">return</span>(subset)</a>
-<a class="sourceLine" id="cb28-39" title="39">    }</a>
-<a class="sourceLine" id="cb28-40" title="40">)</a></code></pre></div>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1"></a><span class="st">`</span><span class="dt">[.StringMatrix</span><span class="st">`</span> &lt;-<span class="st"> </span>crochet<span class="op">::</span><span class="kw">extract</span>(</span>
+<span id="cb28-2"><a href="#cb28-2"></a>    <span class="dt">extract_vector =</span> <span class="cf">function</span>(x, i, ...) { <span class="co"># i are positive integers</span></span>
+<span id="cb28-3"><a href="#cb28-3"></a>        dotdotdot &lt;-<span class="st"> </span><span class="kw">list</span>(...)</span>
+<span id="cb28-4"><a href="#cb28-4"></a>        <span class="co"># Reserve output vector</span></span>
+<span id="cb28-5"><a href="#cb28-5"></a>        subset &lt;-<span class="st"> </span><span class="kw">vector</span>(<span class="dt">mode =</span> <span class="st">&quot;character&quot;</span>, <span class="dt">length =</span> <span class="kw">length</span>(i))</span>
+<span id="cb28-6"><a href="#cb28-6"></a>        <span class="co"># Populate output vector</span></span>
+<span id="cb28-7"><a href="#cb28-7"></a>        <span class="cf">for</span> (singleIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</span>
+<span id="cb28-8"><a href="#cb28-8"></a>            subset[singleIdx] &lt;-<span class="st"> </span><span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), i[singleIdx], i[singleIdx])</span>
+<span id="cb28-9"><a href="#cb28-9"></a>        }</span>
+<span id="cb28-10"><a href="#cb28-10"></a>        <span class="co"># Capitalize output</span></span>
+<span id="cb28-11"><a href="#cb28-11"></a>        <span class="cf">if</span> (<span class="op">!</span><span class="kw">is.null</span>(dotdotdot<span class="op">$</span>capitalize) <span class="op">&amp;&amp;</span><span class="st"> </span>dotdotdot<span class="op">$</span>capitalize) {</span>
+<span id="cb28-12"><a href="#cb28-12"></a>            subset &lt;-<span class="st"> </span><span class="kw">toupper</span>(subset)</span>
+<span id="cb28-13"><a href="#cb28-13"></a>        }</span>
+<span id="cb28-14"><a href="#cb28-14"></a>        <span class="co"># Return output vector</span></span>
+<span id="cb28-15"><a href="#cb28-15"></a>        <span class="kw">return</span>(subset)</span>
+<span id="cb28-16"><a href="#cb28-16"></a>    },</span>
+<span id="cb28-17"><a href="#cb28-17"></a>    <span class="dt">extract_matrix =</span> <span class="cf">function</span>(x, i, j, ...) { <span class="co"># i and j are positive integers</span></span>
+<span id="cb28-18"><a href="#cb28-18"></a>        dotdotdot &lt;-<span class="st"> </span><span class="kw">list</span>(...)</span>
+<span id="cb28-19"><a href="#cb28-19"></a>        <span class="co"># Reserve output matrix</span></span>
+<span id="cb28-20"><a href="#cb28-20"></a>        subset &lt;-<span class="st"> </span><span class="kw">matrix</span>(</span>
+<span id="cb28-21"><a href="#cb28-21"></a>            <span class="dt">data =</span> <span class="kw">vector</span>(<span class="dt">mode =</span> <span class="st">&quot;character&quot;</span>, <span class="dt">length =</span> <span class="kw">length</span>(i) <span class="op">*</span><span class="st"> </span><span class="kw">length</span>(j)),</span>
+<span id="cb28-22"><a href="#cb28-22"></a>            <span class="dt">nrow =</span> <span class="kw">length</span>(i),</span>
+<span id="cb28-23"><a href="#cb28-23"></a>            <span class="dt">ncol =</span> <span class="kw">length</span>(j)</span>
+<span id="cb28-24"><a href="#cb28-24"></a>        )</span>
+<span id="cb28-25"><a href="#cb28-25"></a>        <span class="co"># Populate output matrix</span></span>
+<span id="cb28-26"><a href="#cb28-26"></a>        <span class="cf">for</span> (colIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(j)) {</span>
+<span id="cb28-27"><a href="#cb28-27"></a>            <span class="cf">for</span> (rowIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</span>
+<span id="cb28-28"><a href="#cb28-28"></a>                <span class="co"># two-dimensional index needs to be converted to one-dimensional index</span></span>
+<span id="cb28-29"><a href="#cb28-29"></a>                singleIdx &lt;-<span class="st"> </span>crochet<span class="op">:::</span><span class="kw">ijtok</span>(x, i[rowIdx], j[colIdx])</span>
+<span id="cb28-30"><a href="#cb28-30"></a>                subset[rowIdx, colIdx] &lt;-<span class="st"> </span><span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), singleIdx, singleIdx)</span>
+<span id="cb28-31"><a href="#cb28-31"></a>            }</span>
+<span id="cb28-32"><a href="#cb28-32"></a>        }</span>
+<span id="cb28-33"><a href="#cb28-33"></a>        <span class="co"># Capitalize output</span></span>
+<span id="cb28-34"><a href="#cb28-34"></a>        <span class="cf">if</span> (<span class="op">!</span><span class="kw">is.null</span>(dotdotdot<span class="op">$</span>capitalize) <span class="op">&amp;&amp;</span><span class="st"> </span>dotdotdot<span class="op">$</span>capitalize) {</span>
+<span id="cb28-35"><a href="#cb28-35"></a>            subset &lt;-<span class="st"> </span><span class="kw">toupper</span>(subset)</span>
+<span id="cb28-36"><a href="#cb28-36"></a>        }</span>
+<span id="cb28-37"><a href="#cb28-37"></a>        <span class="co"># Return output matrix</span></span>
+<span id="cb28-38"><a href="#cb28-38"></a>        <span class="kw">return</span>(subset)</span>
+<span id="cb28-39"><a href="#cb28-39"></a>    }</span>
+<span id="cb28-40"><a href="#cb28-40"></a>)</span></code></pre></div>
 <p>Now we can capitalize the output as follows:</p>
-<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb29-1" title="1">obj[<span class="dv">1</span>, ]</a></code></pre></div>
-<pre><code>## [1] &quot;5&quot; &quot;e&quot; &quot;y&quot; &quot;8&quot; &quot;u&quot;</code></pre>
-<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb31-1" title="1">obj[<span class="dv">1</span>, , capitalize =<span class="st"> </span><span class="ot">TRUE</span>]</a></code></pre></div>
-<pre><code>## [1] &quot;5&quot; &quot;E&quot; &quot;Y&quot; &quot;8&quot; &quot;U&quot;</code></pre>
-<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb33-1" title="1">obj[<span class="dv">1</span>, , capitalize =<span class="st"> </span><span class="ot">FALSE</span>]</a></code></pre></div>
-<pre><code>## [1] &quot;5&quot; &quot;e&quot; &quot;y&quot; &quot;8&quot; &quot;u&quot;</code></pre>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1"></a>obj[<span class="dv">1</span>, ]</span></code></pre></div>
+<pre><code>## [1] &quot;l&quot; &quot;2&quot; &quot;y&quot; &quot;3&quot; &quot;q&quot;</code></pre>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1"></a>obj[<span class="dv">1</span>, , capitalize =<span class="st"> </span><span class="ot">TRUE</span>]</span></code></pre></div>
+<pre><code>## [1] &quot;L&quot; &quot;2&quot; &quot;Y&quot; &quot;3&quot; &quot;Q&quot;</code></pre>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1"></a>obj[<span class="dv">1</span>, , capitalize =<span class="st"> </span><span class="ot">FALSE</span>]</span></code></pre></div>
+<pre><code>## [1] &quot;l&quot; &quot;2&quot; &quot;y&quot; &quot;3&quot; &quot;q&quot;</code></pre>
 <p>To support replacement, <code>replace()</code> returns a function that can be used as a method for <code>[&lt;-</code> for a custom type. Analogous to the <code>extract()</code> method, two parameters are required by <code>replace()</code>: <code>replace_vector</code> has to be a function of the form <code>function(x, i, ..., value)</code> and <code>replace_matrix</code> a function of the form <code>function(x, i, j, ..., value)</code>. Both functions return a likely modified version of <code>x</code>.</p>
-<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb35-1" title="1"><span class="st">`</span><span class="dt">[&lt;-.StringMatrix</span><span class="st">`</span> &lt;-<span class="st"> </span>crochet<span class="op">::</span><span class="kw">replace</span>(</a>
-<a class="sourceLine" id="cb35-2" title="2">    <span class="dt">replace_vector =</span> <span class="cf">function</span>(x, i, ..., value) { <span class="co"># i are positive integers</span></a>
-<a class="sourceLine" id="cb35-3" title="3">        <span class="co"># Perform replacement</span></a>
-<a class="sourceLine" id="cb35-4" title="4">        <span class="cf">for</span> (singleIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</a>
-<a class="sourceLine" id="cb35-5" title="5">            <span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), i[singleIdx], i[singleIdx]) &lt;-<span class="st"> </span>value[singleIdx]</a>
-<a class="sourceLine" id="cb35-6" title="6">        }</a>
-<a class="sourceLine" id="cb35-7" title="7">        <span class="co"># Do not forget to return x</span></a>
-<a class="sourceLine" id="cb35-8" title="8">        <span class="kw">return</span>(x)</a>
-<a class="sourceLine" id="cb35-9" title="9">    },</a>
-<a class="sourceLine" id="cb35-10" title="10">    <span class="dt">replace_matrix =</span> <span class="cf">function</span>(x, i, j, ..., value) { <span class="co"># i and j are positive integers</span></a>
-<a class="sourceLine" id="cb35-11" title="11">        <span class="co"># Convert value to matrix for easier indexing</span></a>
-<a class="sourceLine" id="cb35-12" title="12">        <span class="kw">dim</span>(value) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="kw">length</span>(i), <span class="kw">length</span>(j))</a>
-<a class="sourceLine" id="cb35-13" title="13">        <span class="co"># Perform replacement</span></a>
-<a class="sourceLine" id="cb35-14" title="14">        <span class="cf">for</span> (colIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(j)) {</a>
-<a class="sourceLine" id="cb35-15" title="15">            <span class="cf">for</span> (rowIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) { <span class="co"># two-dimensional index needs to be converted to one-dimensional index</span></a>
-<a class="sourceLine" id="cb35-16" title="16">                singleIdx &lt;-<span class="st"> </span>crochet<span class="op">:::</span><span class="kw">ijtok</span>(x, i[rowIdx], j[colIdx])</a>
-<a class="sourceLine" id="cb35-17" title="17">                <span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), singleIdx, singleIdx) &lt;-<span class="st"> </span>value[rowIdx, colIdx]</a>
-<a class="sourceLine" id="cb35-18" title="18">            }</a>
-<a class="sourceLine" id="cb35-19" title="19">        }</a>
-<a class="sourceLine" id="cb35-20" title="20">        <span class="co"># Do not forget to return x</span></a>
-<a class="sourceLine" id="cb35-21" title="21">        <span class="kw">return</span>(x)</a>
-<a class="sourceLine" id="cb35-22" title="22">    }</a>
-<a class="sourceLine" id="cb35-23" title="23">)</a></code></pre></div>
+<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1"></a><span class="st">`</span><span class="dt">[&lt;-.StringMatrix</span><span class="st">`</span> &lt;-<span class="st"> </span>crochet<span class="op">::</span><span class="kw">replace</span>(</span>
+<span id="cb35-2"><a href="#cb35-2"></a>    <span class="dt">replace_vector =</span> <span class="cf">function</span>(x, i, ..., value) { <span class="co"># i are positive integers</span></span>
+<span id="cb35-3"><a href="#cb35-3"></a>        <span class="co"># Perform replacement</span></span>
+<span id="cb35-4"><a href="#cb35-4"></a>        <span class="cf">for</span> (singleIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) {</span>
+<span id="cb35-5"><a href="#cb35-5"></a>            <span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), i[singleIdx], i[singleIdx]) &lt;-<span class="st"> </span>value[singleIdx]</span>
+<span id="cb35-6"><a href="#cb35-6"></a>        }</span>
+<span id="cb35-7"><a href="#cb35-7"></a>        <span class="co"># Do not forget to return x</span></span>
+<span id="cb35-8"><a href="#cb35-8"></a>        <span class="kw">return</span>(x)</span>
+<span id="cb35-9"><a href="#cb35-9"></a>    },</span>
+<span id="cb35-10"><a href="#cb35-10"></a>    <span class="dt">replace_matrix =</span> <span class="cf">function</span>(x, i, j, ..., value) { <span class="co"># i and j are positive integers</span></span>
+<span id="cb35-11"><a href="#cb35-11"></a>        <span class="co"># Convert value to matrix for easier indexing</span></span>
+<span id="cb35-12"><a href="#cb35-12"></a>        <span class="kw">dim</span>(value) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="kw">length</span>(i), <span class="kw">length</span>(j))</span>
+<span id="cb35-13"><a href="#cb35-13"></a>        <span class="co"># Perform replacement</span></span>
+<span id="cb35-14"><a href="#cb35-14"></a>        <span class="cf">for</span> (colIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(j)) {</span>
+<span id="cb35-15"><a href="#cb35-15"></a>            <span class="cf">for</span> (rowIdx <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(i)) { <span class="co"># two-dimensional index needs to be converted to one-dimensional index</span></span>
+<span id="cb35-16"><a href="#cb35-16"></a>                singleIdx &lt;-<span class="st"> </span>crochet<span class="op">:::</span><span class="kw">ijtok</span>(x, i[rowIdx], j[colIdx])</span>
+<span id="cb35-17"><a href="#cb35-17"></a>                <span class="kw">substr</span>(<span class="kw">attr</span>(x, <span class="st">&quot;_data&quot;</span>), singleIdx, singleIdx) &lt;-<span class="st"> </span>value[rowIdx, colIdx]</span>
+<span id="cb35-18"><a href="#cb35-18"></a>            }</span>
+<span id="cb35-19"><a href="#cb35-19"></a>        }</span>
+<span id="cb35-20"><a href="#cb35-20"></a>        <span class="co"># Do not forget to return x</span></span>
+<span id="cb35-21"><a href="#cb35-21"></a>        <span class="kw">return</span>(x)</span>
+<span id="cb35-22"><a href="#cb35-22"></a>    }</span>
+<span id="cb35-23"><a href="#cb35-23"></a>)</span></code></pre></div>
 <p>Now we can replace some data:</p>
-<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb36-1" title="1">obj[<span class="dv">1</span><span class="op">:</span><span class="dv">7</span>] &lt;-<span class="st"> &quot;z&quot;</span></a>
-<a class="sourceLine" id="cb36-2" title="2">obj[]</a></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1"></a>obj[<span class="dv">1</span><span class="op">:</span><span class="dv">7</span>] &lt;-<span class="st"> &quot;z&quot;</span></span>
+<span id="cb36-2"><a href="#cb36-2"></a>obj[]</span></code></pre></div>
 <pre><code>##      [,1] [,2] [,3] [,4] [,5]
-## [1,] &quot;z&quot;  &quot;z&quot;  &quot;y&quot;  &quot;8&quot;  &quot;u&quot; 
-## [2,] &quot;z&quot;  &quot;z&quot;  &quot;h&quot;  &quot;o&quot;  &quot;2&quot; 
-## [3,] &quot;z&quot;  &quot;s&quot;  &quot;j&quot;  &quot;x&quot;  &quot;v&quot; 
-## [4,] &quot;z&quot;  &quot;f&quot;  &quot;4&quot;  &quot;v&quot;  &quot;2&quot; 
-## [5,] &quot;z&quot;  &quot;p&quot;  &quot;h&quot;  &quot;m&quot;  &quot;l&quot;</code></pre>
-<p>As you can see the simple extraction and replacement functions above cover a lot of scenarios. There are some edge cases not mentioned here that can’t be handled by crochet automatically (e.g., x[FALSE], combinations with <code>NA</code>s, and so on), so if you want full coverage, you should run the crochet test suite on your custom type. Examples of this can be found in <code>tests/testthat/test-stringmatrix.R</code> for the <code>StringMatrix</code> type, and in the <a href="https://cran.r-project.org/package=BEDMatrix">BEDMatrix</a> or <a href="https://cran.r-project.org/package=LinkedMatrix">LinkedMatrix</a> packages.</p>
+## [1,] &quot;z&quot;  &quot;z&quot;  &quot;y&quot;  &quot;3&quot;  &quot;q&quot; 
+## [2,] &quot;z&quot;  &quot;z&quot;  &quot;k&quot;  &quot;z&quot;  &quot;y&quot; 
+## [3,] &quot;z&quot;  &quot;c&quot;  &quot;x&quot;  &quot;j&quot;  &quot;r&quot; 
+## [4,] &quot;z&quot;  &quot;k&quot;  &quot;i&quot;  &quot;c&quot;  &quot;8&quot; 
+## [5,] &quot;z&quot;  &quot;3&quot;  &quot;c&quot;  &quot;u&quot;  &quot;2&quot;</code></pre>
+<p>As you can see the simple extraction and replacement functions above cover a lot of scenarios. There are some edge cases not mentioned here that can’t be handled by crochet automatically (e.g., x[FALSE], combinations with <code>NA</code>s, and so on), so if you want full coverage, you should run the crochet test suite on your custom type. Examples of this can be found in <code>inst/tinytest/test-stringmatrix.R</code> for the <code>StringMatrix</code> type, and in the <a href="https://cran.r-project.org/package=BEDMatrix">BEDMatrix</a> or <a href="https://cran.r-project.org/package=LinkedMatrix">LinkedMatrix</a> packages.</p>
 
+
+
+<!-- code folding -->
 
 
 <!-- dynamically load mathjax for compatibility with self-contained -->

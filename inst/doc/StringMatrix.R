@@ -1,4 +1,4 @@
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 dim.StringMatrix <- function(x) {
     attr(x, "_dim") # store dimensions in `_dim` attribute
 }
@@ -11,14 +11,14 @@ dimnames.StringMatrix <- function(x) {
     attr(x, "_dimnames") # store dim names in `_dimnames` attribute
 }
 
-## ---- eval = FALSE-------------------------------------------------------
+## ---- eval = FALSE------------------------------------------------------------
 #  X[seq(1, 25, by = 5)] # subsetting by positive integers
 #  X[1, ] # simplifying subsetting by positive integers
 #  X[-(2:5), ] # simplifying subsetting by negative integers
 #  X[c(TRUE, FALSE, FALSE, FALSE, FALSE), ] # simplifying subsetting by booleans
 #  X["row_1", ] # simplifying subsetting by row names (only if dimnames exist)
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 `[.StringMatrix` <- crochet::extract(
     extract_vector = function(x, i, ...) { # i are positive integers
         # Reserve output vector
@@ -50,7 +50,7 @@ dimnames.StringMatrix <- function(x) {
     }
 )
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 # Generate data
 n <- 5
 p <- 5
@@ -80,7 +80,7 @@ obj[-(2:length(obj)), ] # simplifying subsetting by negative integers
 obj[c(TRUE, rep_len(FALSE, nrow(obj) - 1)), ] # simplifying subsetting by booleans
 obj["row_1", ] # simplifying subsetting by row names (only if dimnames exist)
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 `[.StringMatrix` <- crochet::extract(
     extract_vector = function(x, i, ...) { # i are positive integers
         dotdotdot <- list(...)
@@ -122,12 +122,12 @@ obj["row_1", ] # simplifying subsetting by row names (only if dimnames exist)
     }
 )
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 obj[1, ]
 obj[1, , capitalize = TRUE]
 obj[1, , capitalize = FALSE]
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 `[<-.StringMatrix` <- crochet::replace(
     replace_vector = function(x, i, ..., value) { # i are positive integers
         # Perform replacement
@@ -152,7 +152,7 @@ obj[1, , capitalize = FALSE]
     }
 )
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 obj[1:7] <- "z"
 obj[]
 

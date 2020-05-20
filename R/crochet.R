@@ -17,7 +17,7 @@ convertIndex <- function(x, i, type, allowDoubles = FALSE) {
         if (type != "k" && len_initial_i > n) {
             stop("(subscript) logical subscript too long")
         }
-        len_initial_i_sans_false <- len_initial_i - sum(i == FALSE, na.rm = T)
+        len_initial_i_sans_false <- len_initial_i - sum(i == FALSE, na.rm = TRUE)
         # Expand logical index to length of vector while preserving
         # positions of missing values
         i <- rep_len(i, n)
@@ -31,7 +31,7 @@ convertIndex <- function(x, i, type, allowDoubles = FALSE) {
         }
     } else if (typeof(i) == "character") { # x["a"]
         if (type == "k") {
-            if (class(i) == "matrix" && ncol(i) == 2L) {
+            if (inherits(i, "matrix") && ncol(i) == 2L) {
                 i <- (match(i[, 2L], colnames(x)) - 1L) * nrow(x) + match(i[, 1L], rownames(x))
                 if (any(is.na(i))) {
                     stop("subscript out of bounds")
@@ -47,7 +47,7 @@ convertIndex <- function(x, i, type, allowDoubles = FALSE) {
             }
             i <- match(i, names, nomatch = n + 1L) # intentionally overstep bound
         }
-    } else if (type == "k" && class(i) == "matrix" && ncol(i) == 2L && is.numeric(i)) { # x[y > 1]
+    } else if (type == "k" && inherits(i, "matrix") && ncol(i) == 2L && is.numeric(i)) { # x[i] where i is numeric matrix
         i <- (as.integer(i[, 2L]) - 1L) * nrow(x) + as.integer(i[, 1L])
         checkBounds <- TRUE
     } else if (is.numeric(i)) { # x[1], x[-1], x[0]
